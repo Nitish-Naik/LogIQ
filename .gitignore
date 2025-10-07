@@ -1,1 +1,3 @@
 node_modules/
+
+/collector/node_modules

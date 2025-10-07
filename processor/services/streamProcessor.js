@@ -1,6 +1,9 @@
 const redis = require('../config/redisClient');
 const { insertLogs } = require('../models/logModel');
 
+
+const Redis = require('ioredis');
+const pub = new Redis(process.env.REDIS_URL)
 const STREAM_KEY = process.env.REDIS_STREAM_KEY;
 let lastId = '0';
 
@@ -38,6 +41,13 @@ async function startStreamProcessor() {
 
       if (logs.length) {
         await insertLogs(logs);
+
+        // 🔔 Publish each log to the live channel
+        for(const log of logs) {
+          // Optional: enrich with received_at here if you want
+
+          await pub.publish('logs-live', JSON.stringify(log));
+        }
       }
 
     } catch (err) {

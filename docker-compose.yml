@@ -34,7 +34,7 @@
         PGADMIN_DEFAULT_EMAIL: admin@devlogs.com
         PGADMIN_DEFAULT_PASSWORD: admin
       ports:
-        - "8080:80"
+        - "8082:82"
       depends_on:
         - postgres
       volumes:
