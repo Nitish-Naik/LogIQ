@@ -246,23 +246,14 @@ export const AppNavigation = () => {
                       />
                       <span className="text-muted-foreground">Total Logs</span>
                     </div>
-                    {loading && !totalLogs ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                        <span className="text-sm text-muted-foreground">
-                          Loading...
-                        </span>
-                      </div>
-                    ) : error ? (
-                      <div className="text-sm text-destructive">{error}</div>
-                    ) : (
+                    
                       <span
                         className="font-medium"
                         aria-label={`${stats.totalLogs.toLocaleString()} total logs in system`}
                       >
                         {totalLogs.toLocaleString()}
                       </span>
-                    )}
+                    
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">

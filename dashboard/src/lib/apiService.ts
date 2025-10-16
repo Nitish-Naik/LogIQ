@@ -13,6 +13,7 @@ export interface AuthResponse {
   user: User;
   accessToken: string;
   refreshToken: string;
+  apiKey?: string; // Only present on signup
 }
 
 export interface SignupRequest {
