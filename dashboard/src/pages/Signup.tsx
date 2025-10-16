@@ -141,6 +141,17 @@ export default function AuthForm() {
                   required
                   className="w-full px-4 py-3 border border-border rounded-xl bg-background/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200"
                 />
+                {!isSignUp && (
+                  <div className="text-right mt-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate("/forgot-password")}
+                      className="text-sm text-primary hover:text-primary/80 transition-colors duration-200"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                )}
               </div>
 
               {isSignUp && (

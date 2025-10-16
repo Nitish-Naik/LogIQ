@@ -53,6 +53,24 @@ export interface GetLogsResponse {
   hasMore: boolean;
 }
 
+export interface GetAllLogsParams {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+}
+
+export interface GetAllLogsResponse {
+  logs: LogEntry[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+export interface LogsCountResponse {
+  total: number;
+  timestamp: string;
+}
+
 
 class ApiService {
   private getAuthHeader(): Record<string, string> {
@@ -166,6 +184,39 @@ class ApiService {
     return this.handleResponse<GetLogsResponse>(response);
   }
 
+  async getAllLogs(params?: GetAllLogsParams): Promise<GetAllLogsResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.orderBy) queryParams.append('orderBy', params.orderBy);
+
+    const url = params 
+      ? `${API_ENDPOINTS.LOGS.GET_ALL_LOGS}?${queryParams.toString()}`
+      : API_ENDPOINTS.LOGS.GET_ALL_LOGS;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        ...this.getAuthHeader(),
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return this.handleResponse<GetAllLogsResponse>(response);
+  }
+
+  async getLogsCount(): Promise<LogsCountResponse> {
+    const response = await fetch(API_ENDPOINTS.LOGS.GET_LOGS_COUNT, {
+      method: 'GET',
+      headers: {
+        ...this.getAuthHeader(),
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return this.handleResponse<LogsCountResponse>(response);
+  }
+
   async createLog(log: {
     timestamp: string;
     level: 'info' | 'warn' | 'error' | 'debug';
@@ -184,6 +235,42 @@ class ApiService {
     });
 
     return this.handleResponse<{ status: string }>(response);
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string; resetToken?: string; resetLink?: string }> {
+    const response = await fetch(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    return this.handleResponse<{ message: string; resetToken?: string; resetLink?: string }>(response);
+  }
+
+  async verifyResetToken(token: string): Promise<{ valid: boolean; email: string; message: string }> {
+    const response = await fetch(API_ENDPOINTS.AUTH.VERIFY_RESET_TOKEN, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    return this.handleResponse<{ valid: boolean; email: string; message: string }>(response);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    const response = await fetch(API_ENDPOINTS.AUTH.RESET_PASSWORD, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, newPassword }),
+    });
+
+    return this.handleResponse<{ message: string }>(response);
   }
 }
 

@@ -8,10 +8,15 @@ export const API_ENDPOINTS = {
     SIGNIN: `${AUTH_API_URL}/api/auth/signin`,
     REFRESH_TOKEN: `${AUTH_API_URL}/api/auth/refresh-token`,
     ME: `${AUTH_API_URL}/api/auth/me`,
+    FORGOT_PASSWORD: `${AUTH_API_URL}/api/auth/forgot-password`,
+    VERIFY_RESET_TOKEN: `${AUTH_API_URL}/api/auth/verify-reset-token`,
+    RESET_PASSWORD: `${AUTH_API_URL}/api/auth/reset-password`,
   },
   LOGS: {
-    GET_LOGS: `${LOGS_API_URL}/api/logs`,
-    GET_STATS: `${LOGS_API_URL}/api/logs/stats`,
+    GET_LOGS: `${LOGS_API_URL}/logs`,
+    GET_ALL_LOGS: `${LOGS_API_URL}/logs/all`,
+    GET_LOGS_COUNT: `${LOGS_API_URL}/logs/count`,
+    GET_STATS: `${LOGS_API_URL}/logs/stats`,
     CREATE_LOG: `http://localhost:4000/logs`, // Collector service
   },
 };

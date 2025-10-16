@@ -1,22 +1,22 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { useState, useEffect, useMemo } from  "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarGroup, 
-  SidebarGroupContent, 
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar 
+  useSidebar,
 } from "@/components/ui/sidebar";
-import { 
-  LayoutDashboard, 
-  BarChart3, 
-  Users, 
-  Settings, 
+import {
+  LayoutDashboard,
+  BarChart3,
+  Users,
+  Settings,
   FileBarChart,
   Activity,
   Bell,
@@ -25,37 +25,39 @@ import {
   CheckCircle,
   Clock,
   Zap,
-  TrendingUp
+  TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { cn } from "@/lib/utils";
+
+import { apiService } from "@/lib/apiService";
 
 const navigationItems = [
   {
     title: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
-    description: "Overview and live logs"
+    description: "Overview and live logs",
   },
   {
     title: "Reports",
-    href: "/reports", 
+    href: "/reports",
     icon: FileBarChart,
-    description: "Daily reports and analytics"
+    description: "Daily reports and analytics",
   },
   {
     title: "Team",
     href: "/team",
-    icon: Users, 
-    description: "Team management"
+    icon: Users,
+    description: "Team management",
   },
   {
     title: "Settings",
     href: "/settings",
     icon: Settings,
-    description: "Organization settings"
-  }
+    description: "Organization settings",
+  },
 ];
 
 export const AppNavigation = () => {
@@ -64,29 +66,60 @@ export const AppNavigation = () => {
   const navigate = useNavigate();
   const isCollapsed = state === "collapsed";
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalLogs, setTotalLogs] = useState<number>(0);
+  const [lastUpdated, setLastUpdated] = useState<string>("");
 
   // Mock data for stats
   const stats = {
     totalLogs: 1000,
     errorCount: 50,
     warningCount: 100,
-    errorRate: "5.00"
+    errorRate: "5.00",
   };
 
   // Mock data for activity status
   const activityStatus = {
-    status: 'active',
-    label: 'Active',
-    color: 'bg-green-400',
-    rate: 10
+    status: "active",
+    label: "Active",
+    color: "bg-green-400",
+    rate: 10,
   };
 
   // Mock data for uptime stats
   const uptimeStats = {
     uptimePercentage: "99.95",
     timeSinceLastError: 20 * 60 * 60 * 1000,
-    uptimeDisplay: "20h 0m"
+    uptimeDisplay: "20h 0m",
   };
+
+  const fetchTotalLogs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const result = await apiService.getLogsCount();
+      setTotalLogs(result.total);
+      setLastUpdated(new Date(result.timestamp).toLocaleString());
+    } catch (error) {
+      console.error("Error fetching total logs : ", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to fetch total logs"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTotalLogs();
+
+    // Optional: Auto-refresh every 30 seconds
+    const interval = setInterval(fetchTotalLogs, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const uptimePercentage = uptimeStats.uptimePercentage;
   const uptimeDisplay = uptimeStats.uptimeDisplay;
@@ -95,7 +128,10 @@ export const AppNavigation = () => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only handle shortcuts when not typing in an input
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
@@ -109,32 +145,32 @@ export const AppNavigation = () => {
       }
 
       // Alt + D for Dashboard
-      if (event.altKey && event.key.toLowerCase() === 'd') {
+      if (event.altKey && event.key.toLowerCase() === "d") {
         event.preventDefault();
-        navigate('/dashboard');
+        navigate("/dashboard");
       }
 
       // Alt + R for Reports
-      if (event.altKey && event.key.toLowerCase() === 'r') {
+      if (event.altKey && event.key.toLowerCase() === "r") {
         event.preventDefault();
-        navigate('/reports');
+        navigate("/reports");
       }
 
       // Alt + T for Team
-      if (event.altKey && event.key.toLowerCase() === 't') {
+      if (event.altKey && event.key.toLowerCase() === "t") {
         event.preventDefault();
-        navigate('/team');
+        navigate("/team");
       }
 
       // Alt + S for Settings
-      if (event.altKey && event.key.toLowerCase() === 's') {
+      if (event.altKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        navigate('/settings');
+        navigate("/settings");
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [navigate]);
 
   const isActive = (href: string) => {
@@ -155,7 +191,9 @@ export const AppNavigation = () => {
                   <Activity className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-foreground">Instant Dev Logs</h2>
+                  <h2 className="font-semibold text-foreground">
+                    Instant Dev Logs
+                  </h2>
                   <p className="text-xs text-muted-foreground">Dashboard</p>
                 </div>
               </div>
@@ -168,13 +206,13 @@ export const AppNavigation = () => {
                   {navigationItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton asChild isActive={isActive(item.href)}>
-                        <NavLink 
+                        <NavLink
                           to={item.href}
                           className={({ isActive }) =>
                             cn(
                               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                              isActive 
-                                ? "bg-primary text-primary-foreground" 
+                              isActive
+                                ? "bg-primary text-primary-foreground"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
                             )
                           }
@@ -195,77 +233,127 @@ export const AppNavigation = () => {
                 Quick Stats
               </SidebarGroupLabel>
               <SidebarGroupContent>
-                <div className="px-3 py-2 space-y-3" role="region" aria-label="System statistics">
+                <div
+                  className="px-3 py-2 space-y-3"
+                  role="region"
+                  aria-label="System statistics"
+                >
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <Database className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                      <Database
+                        className="h-3 w-3 text-muted-foreground"
+                        aria-hidden="true"
+                      />
                       <span className="text-muted-foreground">Total Logs</span>
                     </div>
-                    <span className="font-medium" aria-label={`${stats.totalLogs.toLocaleString()} total logs in system`}>
-                      {stats.totalLogs.toLocaleString()}
-                    </span>
+                    {loading && !totalLogs ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        <span className="text-sm text-muted-foreground">
+                          Loading...
+                        </span>
+                      </div>
+                    ) : error ? (
+                      <div className="text-sm text-destructive">{error}</div>
+                    ) : (
+                      <span
+                        className="font-medium"
+                        aria-label={`${stats.totalLogs.toLocaleString()} total logs in system`}
+                      >
+                        {totalLogs.toLocaleString()}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-3 w-3 text-log-error" aria-hidden="true" />
+                      <AlertTriangle
+                        className="h-3 w-3 text-log-error"
+                        aria-hidden="true"
+                      />
                       <span className="text-muted-foreground">Error Rate</span>
                     </div>
-                    <span className="font-medium text-log-error" aria-label={`Error rate: ${stats.errorRate} percent`}>
+                    <span
+                      className="font-medium text-log-error"
+                      aria-label={`Error rate: ${stats.errorRate} percent`}
+                    >
                       {stats.errorRate}%
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <Bell className="h-3 w-3 text-log-warning" aria-hidden="true" />
+                      <Bell
+                        className="h-3 w-3 text-log-warning"
+                        aria-hidden="true"
+                      />
                       <span className="text-muted-foreground">Warnings</span>
                     </div>
-                    <span className="font-medium text-log-warning" aria-label={`${stats.warningCount} warning logs`}>
+                    <span
+                      className="font-medium text-log-warning"
+                      aria-label={`${stats.warningCount} warning logs`}
+                    >
                       {stats.warningCount}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <Clock className="h-3 w-3 text-status-online" aria-hidden="true" />
+                      <Clock
+                        className="h-3 w-3 text-status-online"
+                        aria-hidden="true"
+                      />
                       <span className="text-muted-foreground">Uptime</span>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium text-status-online" aria-label={`System uptime: ${uptimePercentage} percent`}>
+                      <div
+                        className="font-medium text-status-online"
+                        aria-label={`System uptime: ${uptimePercentage} percent`}
+                      >
                         {uptimePercentage}%
                       </div>
-                      <div className="text-xs text-muted-foreground" aria-label={`Time since last error: ${uptimeDisplay}`}>
+                      <div
+                        className="text-xs text-muted-foreground"
+                        aria-label={`Time since last error: ${uptimeDisplay}`}
+                      >
                         {uptimeDisplay}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
-                      <span className="text-muted-foreground">System Health</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div 
-                        className={`h-2 w-2 rounded-full ${stats.errorCount > 0 ? 'bg-log-error animate-pulse' : 'bg-status-online'}`} 
+                      <CheckCircle
+                        className="h-3 w-3 text-muted-foreground"
                         aria-hidden="true"
                       />
-                      <span 
-                        className={`font-medium ${stats.errorCount > 0 ? 'text-log-error' : 'text-status-online'}`}
-                        aria-label={`System health: ${stats.errorCount > 0 ? 'Issues detected' : 'System healthy'}`}
+                      <span className="text-muted-foreground">
+                        System Health
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div
+                        className={`h-2 w-2 rounded-full ${stats.errorCount > 0 ? "bg-log-error animate-pulse" : "bg-status-online"}`}
+                        aria-hidden="true"
+                      />
+                      <span
+                        className={`font-medium ${stats.errorCount > 0 ? "text-log-error" : "text-status-online"}`}
+                        aria-label={`System health: ${stats.errorCount > 0 ? "Issues detected" : "System healthy"}`}
                       >
-                        {stats.errorCount > 0 ? 'Issues' : 'Healthy'}
+                        {stats.errorCount > 0 ? "Issues" : "Healthy"}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <Zap className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                      <Zap
+                        className="h-3 w-3 text-muted-foreground"
+                        aria-hidden="true"
+                      />
                       <span className="text-muted-foreground">Activity</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <div 
-                        className={`h-2 w-2 rounded-full ${activityStatus.color}`} 
+                      <div
+                        className={`h-2 w-2 rounded-full ${activityStatus.color}`}
                         aria-hidden="true"
                       />
-                      <span 
+                      <span
                         className="font-medium text-muted-foreground"
                         aria-label={`System activity: ${activityStatus.label}`}
                       >
@@ -282,7 +370,9 @@ export const AppNavigation = () => {
                 <SidebarGroupContent>
                   <div className="px-3 py-2">
                     <div className="text-xs text-muted-foreground space-y-1">
-                      <div className="font-medium text-muted-foreground/80">Keyboard Shortcuts:</div>
+                      <div className="font-medium text-muted-foreground/80">
+                        Keyboard Shortcuts:
+                      </div>
                       <div>Alt+1-4: Navigate</div>
                       <div>Alt+D/R/T/S: Quick nav</div>
                     </div>
@@ -292,7 +382,7 @@ export const AppNavigation = () => {
             )}
           </>
         )}
-        
+
         {isCollapsed && (
           <div className="flex flex-col items-center py-4 space-y-4">
             <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
@@ -305,8 +395,8 @@ export const AppNavigation = () => {
                 className={({ isActive }) =>
                   cn(
                     "p-2 rounded-lg transition-colors",
-                    isActive 
-                      ? "bg-primary text-primary-foreground" 
+                    isActive
+                      ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )
                 }

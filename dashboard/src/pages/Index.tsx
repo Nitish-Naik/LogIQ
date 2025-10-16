@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { ChartsSection } from "@/components/dashboard/ChartsSection";
+// import { ChartsSection } from "@/components/dashboard/ChartsSection";
 import { LogsTable } from "@/components/dashboard/LogsTable";
 import { LiveStream } from "@/components/dashboard/LiveStream";
 import { FilterPanel } from "@/components/dashboard/FilterPanel";
@@ -47,7 +47,7 @@ const Index = () => {
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Charts Section */}
-          <ChartsSection filters={filters} />
+          {/* <ChartsSection filters={filters} /> */}
 
           {/* AI Insights Section */}
           {/* <div className="mb-6">
