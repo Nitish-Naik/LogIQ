@@ -8,6 +8,6 @@ const interval = setInterval(() => {
   if (count >= MAX_LOGS) return clearInterval(interval);
   sendLog(APP_NAME, true); // simulateError = true
   count++;
-}, 600);
+}, 6000);
 
 

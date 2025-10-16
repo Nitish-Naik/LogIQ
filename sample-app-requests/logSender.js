@@ -3,7 +3,7 @@ import { getRandomLogLevel, getRandomMessage } from './utils.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-export async function sendLog(appName, simulateError = false, malformed = false) {
+export async function sendLog(appName, simulateError = false, malformed = false, userId = null, organizationId = null) {
   const level = getRandomLogLevel();
   const message = getRandomMessage(level);
 
@@ -18,6 +18,14 @@ export async function sendLog(appName, simulateError = false, malformed = false)
       env: 'dev'
     }
   };
+
+  // Add userId and organizationId if provided (for authenticated logs)
+  if (userId) {
+    log.userId = userId;
+  }
+  if (organizationId) {
+    log.organizationId = organizationId;
+  }
 
   if (malformed) {
     // Drop fields

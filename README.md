@@ -68,3 +68,29 @@ To test locally:
 - `db/` – DB schema and queries
 - `sample-app/` – Generates logs for testing
 - `dashboard/` – Optional frontend
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- 
+
+Postgres database interaction command
+
+docker exec -it devlogs-postgres psql -U devlogs -d logsdb
+ -->

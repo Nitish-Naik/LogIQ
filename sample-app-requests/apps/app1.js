@@ -8,4 +8,4 @@ const interval = setInterval(() => {
   if (count >= MAX_LOGS) return clearInterval(interval);
   sendLog(APP_NAME);
   count++;
-}, 500);
+}, 5000);

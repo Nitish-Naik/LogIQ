@@ -8,7 +8,9 @@ const logSchema = Joi.object({
   level: Joi.string().valid('info', 'warn', 'error', 'debug').required(),
   message: Joi.string().required(),
   appName: Joi.string().required(),
-  meta: Joi.object().optional(), // additional info like userId, IP, etc.
+  userId: Joi.string().uuid().optional(), // User ID for log association
+  organizationId: Joi.string().uuid().optional(), // Organization ID for multi-tenant support
+  meta: Joi.object().optional(), // additional info like IP, etc.
 });
 
 module.exports = logSchema;
