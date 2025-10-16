@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const pool = require('../config/db');
+const { generateApiKey } = require('../utils/apiKeyGenerator');
 const { 
   signupSchema, 
   signinSchema, 
@@ -72,6 +73,14 @@ const signup = async (req, res) => {
       [userId, email.toLowerCase(), hashedPassword, organizationId, 'admin']
     );
 
+    // Generate API key for the user
+    const { apiKey, keyHash, keyPrefix } = generateApiKey();
+    await client.query(
+      `INSERT INTO api_keys (key_hash, key_prefix, user_id, organization_id, name, is_active, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+      [keyHash, keyPrefix, userId, organizationId, 'Default API Key', true]
+    );
+
     // Commit transaction
     await client.query('COMMIT');
 
@@ -88,7 +97,8 @@ const signup = async (req, res) => {
         role: 'admin'
       },
       accessToken,
-      refreshToken
+      refreshToken,
+      apiKey  // ⚠️ IMPORTANT: This is shown ONLY ONCE! User must save it.
     });
 
   } catch (err) {

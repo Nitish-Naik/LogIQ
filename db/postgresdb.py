@@ -25,6 +25,30 @@ def get_db_connection():
             conn.close()
 
 
+
+def fetch_users():
+    """Fetch and return the total count of logs."""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM users;")
+                result = cursor.fetchall()
+                
+                if result is None:
+                    print("Could not fetch log count.")
+                    return 0
+                
+                count = result[0]
+                print(f"Total logs: {count}")
+                return count
+    except psycopg2.Error as e:
+        print(f"Database error: {e}")
+        return None
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+
 def fetch_total_logs():
     """Fetch and return the total count of logs."""
     try:
@@ -48,24 +72,24 @@ def fetch_total_logs():
         return None
 
 
-def fetch_all_logs():
-    """Fetch and display all logs in a tabular format."""
+def fetch_all(table=None):
+    """Fetch and display all records in a tabular format."""
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM logs;")
-                logs_data = cursor.fetchall()
+                cursor.execute(f"SELECT * FROM {table};")
+                data = cursor.fetchall()
                 
                 # Get column names
                 colnames = [desc[0] for desc in cursor.description] if cursor.description else []
                 
                 # Print in tabular format
-                if logs_data:
-                    print(tabulate(logs_data, headers=colnames, tablefmt="grid"))
+                if data:
+                    print(tabulate(data, headers=colnames, tablefmt="grid"))
                 else:
-                    print("No logs found.")
+                    print("No records found.")
                 
-                return logs_data
+                return data
                 
     except psycopg2.Error as e:
         print(f"Database error: {e}")
@@ -169,24 +193,24 @@ def delete_logs_before_date(date):
         return 0
 
 
-def delete_all_logs(confirm=False):
-    """Delete ALL logs from the database. Requires confirmation.
+def delete_all(confirm=False, table=None):
+    """Delete ALL records from the database. Requires confirmation.
     
     Args:
         confirm: Must be True to actually delete. Safety measure.
     """
     if not confirm:
-        print("WARNING: This will delete ALL logs. Call with confirm=True to proceed.")
+        print("WARNING: This will delete ALL records. Call with confirm=True to proceed.")
         return False
         
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM logs;")
+                cursor.execute(f"DELETE FROM {table};")
                 deleted_count = cursor.rowcount
                 conn.commit()
                 
-                print(f"Successfully deleted ALL {deleted_count} log(s) from database")
+                print(f"Successfully deleted ALL {deleted_count} {table}(s) from database")
                 return deleted_count
                     
     except psycopg2.Error as e:
@@ -197,12 +221,35 @@ def delete_all_logs(confirm=False):
         return 0
 
 
+def show_tables():
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                # Query to list all tables in the public schema
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public';
+                """)
+                tables = cursor.fetchall()  # Fetch all rows
+                conn.commit()  # Commit if needed (not necessary for SELECT queries)
+                print("Tables:", [table[0] for table in tables])
+                    
+    except psycopg2.Error as e:
+        print(f"Database error: {e}")
+        return 0
+    except Exception as e:
+        print(f"Error: {e}")
+        return 0
+
+
 if __name__ == "__main__":
-    print("=== Fetching All Logs ===")
-    # fetch_all_logs()
+    # print("=== Fetching All Logs ===")
+    fetch_all(table="organizations")
+    fetch_all(table="users")
     
-    print("\n=== Total Log Count ===")
-    fetch_total_logs()
+    # print("\n=== Total Log Count ===")
+    # fetch_total_logs()
     
     # Example: Uncomment to filter by log level
     # print("\n=== Error Logs ===")
@@ -219,7 +266,16 @@ if __name__ == "__main__":
     # delete_logs_before_date('2024-01-01')
     
     # print("\n=== DANGER: Delete ALL logs ===")
-    delete_all_logs(confirm=True)
+    # delete_all(confirm=True, table="organizations")
+    # print("\n=== ALL Users ===")
+    # fetch_users()
+
+    show_tables()
+
+
+
+
+
 
 """Great question! Let me explain `yield` in the context of context managers.
 
