@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
+const { testConnection } = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -38,9 +39,22 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Auth service running on http://localhost:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Start server with database connection test
+const startServer = async () => {
+  // Test database connection first
+  const dbConnected = await testConnection();
+  
+  if (!dbConnected) {
+    console.error('⚠️  Server starting without database connection. Please check your PostgreSQL configuration.');
+    console.error('Make sure Docker is running: docker-compose up -d');
+  }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Auth service running on http://localhost:${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+};
+
+startServer();
 
 module.exports = app;

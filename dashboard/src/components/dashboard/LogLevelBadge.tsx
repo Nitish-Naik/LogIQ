@@ -27,6 +27,10 @@ const levelConfig = {
 
 export const LogLevelBadge = ({ level, size = "default" }: LogLevelBadgeProps) => {
   const config = levelConfig[level];
+
+  if(!config) {
+    return <Badge variant="outline" className="bg-gray-200 text-gray-800 border-gray-300">UNKNOWN</Badge>;
+  }
   
   return (
     <Badge 

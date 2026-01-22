@@ -94,12 +94,12 @@ export const AppNavigation = () => {
     uptimeDisplay: "20h 0m",
   };
 
-  const fetchTotalLogs = async () => {
+  const fetchTotalLogs = async (organizationId: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const result = await apiService.getLogsCount();
+      const result = await apiService.getLogsCount({ organizationId });
       setTotalLogs(result.total);
       setLastUpdated(new Date(result.timestamp).toLocaleString());
     } catch (error) {
@@ -112,14 +112,25 @@ export const AppNavigation = () => {
     }
   };
 
-  useEffect(() => {
-    fetchTotalLogs();
+useEffect(() => {
+  const loadLogs = async () => {
+    try {
+      const result = await apiService.getCurrentUser(); // returns { user: User }
+      const currentUser = result.user;
+      if (!currentUser) return;
 
-    // Optional: Auto-refresh every 30 seconds
-    const interval = setInterval(fetchTotalLogs, 30000);
+      const currentOrgId = currentUser.organizationId;
+      fetchTotalLogs(currentOrgId);
 
-    return () => clearInterval(interval);
-  }, []);
+      const interval = setInterval(() => fetchTotalLogs(currentOrgId), 30000);
+      return () => clearInterval(interval);
+    } catch (err) {
+      console.error("Failed to fetch user or logs", err);
+    }
+  };
+
+  loadLogs();
+}, []);
 
   const uptimePercentage = uptimeStats.uptimePercentage;
   const uptimeDisplay = uptimeStats.uptimeDisplay;

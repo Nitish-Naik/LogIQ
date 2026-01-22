@@ -55,27 +55,40 @@ export function buildQuery(filters) {
 
 // New function to get all rows with optional limit
 export function buildAllRowsQuery(options = {}) {
-  console.log('🔧 [buildAllRowsQuery] Starting with options:', JSON.stringify(options, null, 2));
-  
-  const limit = parseInt(options.limit) || 1000; // Default limit to prevent overwhelming response
+  const limit = parseInt(options.limit) || 1000;
   const offset = parseInt(options.offset) || 0;
-  const orderBy = options.orderBy || "timestamp DESC"; // Default order by timestamp descending
+  const orderBy = options.orderBy || "timestamp DESC";
 
-  console.log(`📊 [buildAllRowsQuery] Pagination - Limit: ${limit}, Offset: ${offset}`);
-  console.log(`📊 [buildAllRowsQuery] Order by: ${orderBy}`);
+  const organizationId = options.organizationId;
+  if (!organizationId) {
+    throw new Error("organizationId is required to fetch logs");
+  }
 
-  const query = `SELECT * FROM logs ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`;
-  
-  console.log(`✅ [buildAllRowsQuery] Final SQL: ${query}`);
+  const query = `SELECT * FROM logs WHERE organization_id = $1 ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`;
+  const values = [organizationId];
 
-  return { text: query, values: [] };
+  return { text: query, values };
 }
 
+
 // Function to get total count of all rows
-export function buildCountQuery() {
+export function buildCountQuery(organizationId) {
   console.log('🔧 [buildCountQuery] Building count query');
   
-  const query = "SELECT COUNT(*) as total FROM logs";
+  const query = "SELECT COUNT(*) as total FROM logs where organization_id = $1";
+  const values = [organizationId];
+  
+  console.log(`✅ [buildCountQuery] Final SQL: ${query}`, values);
+  
+  return { text: query, values };
+}
+
+
+// Function to get organization details
+export function buildOrganizationDetailsQuery() {
+  console.log('🔧 [buildOrganizationDetailsQuery] Building organization details query');
+  
+  const query = "SELECT name FROM organizations where id=58d71145-ccce-4dfa-8e60-0feb9c04d5c6";
   
   console.log(`✅ [buildCountQuery] Final SQL: ${query}`);
   

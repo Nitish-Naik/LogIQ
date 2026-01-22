@@ -19,6 +19,9 @@ export const API_ENDPOINTS = {
     GET_STATS: `${LOGS_API_URL}/logs/stats`,
     CREATE_LOG: `http://localhost:4000/logs`, // Collector service
   },
+  ORGANIZATION: {
+    GET_DETAILS: `${LOGS_API_URL}/getOrgDetails`
+  }
 };
 
 export default AUTH_API_URL;

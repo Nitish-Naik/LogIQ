@@ -11,7 +11,7 @@ interface LogEntry {
   level: "error" | "warning" | "info" | "debug";
   message: string;
   app_name: string;
-  meta?: Record<string, any>;
+  meta?: Record<string, unknown>;
 }
 
 interface LogDetailModalProps {

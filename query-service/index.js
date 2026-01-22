@@ -81,7 +81,8 @@ app.get('/logs/all', async (req, res) => {
         const options = {
             limit: req.query.limit,
             offset: req.query.offset,
-            orderBy: req.query.orderBy
+            orderBy: req.query.orderBy,
+            organizationId: req.query.organizationId,
         };
         
         console.log('📋 [/logs/all] Options:', options);
@@ -126,10 +127,10 @@ app.get('/logs/all', async (req, res) => {
 // New endpoint to get total count of logs
 app.get('/logs/count', async (req, res) => {
     console.log('\n📊 [/logs/count] Starting count query');
-    
+    const organizationId = req.query.organizationId;
     try {
         console.log('📊 [/logs/count] Building count query...');
-        const { text, values } = buildCountQuery();
+        const { text, values } = buildCountQuery(organizationId);
         
         console.log('📊 [/logs/count] Executing database query...');
         const startTime = Date.now();
@@ -149,6 +150,44 @@ app.get('/logs/count', async (req, res) => {
         res.json(responseData);
     } catch (err) {
         console.error('❌ [/logs/count] Error details:', {
+            message: err.message,
+            code: err.code,
+            detail: err.detail,
+            where: err.where,
+            stack: err.stack
+        });
+        res.status(500).json({ error: 'Failed to get log count' });
+    }
+});
+
+
+// New endpoint to get organization details
+app.get('/getOrgDetails', async (req, res) => {
+    console.log('\n📊 Starting organization details query');
+    
+    try {
+        console.log('📊 [/logs/getOrgDetails] Building organization details  query...');
+        const { text, values } = buildOrganizationDetailsQuery();
+        
+        console.log('📊 [/logs/getOrgDetails] Executing database query...');
+        const startTime = Date.now();
+        const result = await pool.query(text, values);
+        const queryTime = Date.now() - startTime;
+        
+        console.log(`✅ [/logs/getOrgDetails] Query executed successfully in ${queryTime}ms`);
+        console.log(`✅ [/logs/getOrgDetails] Raw result:`, result.rows[0]);
+        
+        const responseData = { 
+            name: result.name
+            // total: parseInt(result.rows[0].total),
+            // timestamp: new Date().toISOString()
+        };
+        
+        console.log(`✅ [/logs/getOrgDetails] Final response:`, responseData);
+        
+        res.json(responseData);
+    } catch (err) {
+        console.error('❌ [/logs/getOrgDetails] Error details:', {
             message: err.message,
             code: err.code,
             detail: err.detail,

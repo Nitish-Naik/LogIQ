@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Building2, Save, Upload, Bell, Shield, CreditCard, Key, AlertTriangle, Trash2, Mail, Clock, Database, Zap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { apiService, LogEntry } from "@/lib/apiService";
 
 const OrganizationSettings = () => {
   const { user } = useAuth();
@@ -69,6 +70,37 @@ const OrganizationSettings = () => {
   const [ipRestrictionsEnabled, setIpRestrictionsEnabled] = useState(organization.settings.ipRestrictionsEnabled);
   const [newApiKeyName, setNewApiKeyName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalLogs, setTotalLogs] = useState<number>(0);
+  const [lastUpdated, setLastUpdated] = useState<string>("");
+  
+
+    const fetchTotalLogs = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+  
+        const result = await apiService.getLogsCount();
+        setTotalLogs(result.total);
+        setLastUpdated(new Date(result.timestamp).toLocaleString());
+      } catch (error) {
+        console.error("Error fetching total logs : ", error);
+        setError(
+          error instanceof Error ? error.message : "Failed to fetch total logs"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    useEffect(() => {
+      fetchTotalLogs();
+  
+      // Optional: Auto-refresh every 30 seconds
+      const interval = setInterval(fetchTotalLogs, 30000);
+      return () => clearInterval(interval);
+    }, []);
 
   const handleSaveSettings = async () => {
     setIsLoading(true);
@@ -201,7 +233,7 @@ const OrganizationSettings = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-gradient-surface rounded-lg">
                     <Database className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{organizationStats?.totalLogs?.toLocaleString() || 0}</div>
+                    <div className="text-2xl font-bold">{totalLogs || 0}</div>
                     <div className="text-sm text-muted-foreground">Total Logs</div>
                   </div>
                   <div className="text-center p-4 bg-gradient-surface rounded-lg">

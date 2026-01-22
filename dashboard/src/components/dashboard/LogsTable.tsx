@@ -1,109 +1,45 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Download, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
   RefreshCw,
   Eye,
   Search,
-  Calendar
+  Calendar,
 } from "lucide-react";
 import { LogFilters } from "@/pages/Index";
 import { LogLevelBadge } from "@/components/dashboard/LogLevelBadge";
 import { LogDetailModal } from "@/components/dashboard/LogDetailModal";
 import { format } from "date-fns";
-
+import { apiService, LogEntry, type User } from "@/lib/apiService";
 
 interface LogsTableProps {
   filters: LogFilters;
 }
 
-interface LogEntry {
-  _id: string;
-  timestamp: number;
-  level: "error" | "warning" | "info" | "debug";
-  message: string;
-  app_name: string;
-  userId: string;
-  organization: string;
-  meta?: { [key: string]: unknown };
-}
-
-// Sample data - in real app this would come from your API
-const sampleLogs: LogEntry[] = [
-  {
-    _id: "1",
-    timestamp: new Date("2025-09-20T10:30:45Z").getTime(),
-    level: "error",
-    message: "Failed to connect to database: connection timeout after 30s",
-    app_name: "payment-service",
-    userId: "user_123",
-    organization: "test-org",
-    meta: { retryCount: 3, connectionPool: "primary" }
-  },
-  {
-    _id: "2", 
-    timestamp: new Date("2025-09-20T10:30:42Z").getTime(),
-    level: "warning",
-    message: "High memory usage detected: 85% of allocated heap",
-    app_name: "user-service",
-    userId: "user_123",
-    organization: "test-org",
-    meta: { memoryUsage: "850MB", heapSize: "1GB" }
-  },
-  {
-    _id: "3",
-    timestamp: new Date("2025-09-20T10:30:40Z").getTime(),
-    level: "info",
-    message: "User authentication successful",
-    app_name: "auth-service", 
-    userId: "user_123",
-    organization: "test-org",
-    meta: { userId: "user_123", sessionId: "sess_abc" }
-  },
-  {
-    _id: "4",
-    timestamp: new Date("2025-09-20T10:30:38Z").getTime(),
-    level: "debug",
-    message: "Processing webhook payload from Stripe",
-    app_name: "payment-service",
-    userId: "user_123",
-    organization: "test-org",
-    meta: { eventType: "payment.succeeded", customerId: "cus_123" }
-  },
-  {
-    _id: "5",
-    timestamp: new Date("2025-09-20T10:30:35Z").getTime(),
-    level: "error",
-    message: "Email delivery failed: SMTP server unreachable",
-    app_name: "notification-service",
-    userId: "user_123",
-    organization: "test-org",
-    meta: { recipient: "user@example.com", templateId: "welcome" }
-  },
-  {
-    _id: "6",
-    timestamp: new Date("2025-09-20T10:30:32Z").getTime(),
-    level: "info",
-    message: "Cache miss for user profile, fetching from database",
-    app_name: "user-service",
-    userId: "user_123",
-    organization: "test-org",
-    meta: { cacheKey: "profile_user_123", ttl: 3600 }
-  }
-];
+// interface LogEntry {
+//   _id: string;
+//   timestamp: number;
+//   level: "error" | "warning" | "info" | "debug";
+//   message: string;
+//   app_name: string;
+//   userId: string;
+//   organization: string;
+//   meta?: { [key: string]: unknown };
+// }
 
 export const LogsTable = ({ filters }: LogsTableProps) => {
   // const { user } = useAuth();
@@ -112,8 +48,95 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalLogs, setTotalLogs] = useState<number>(0);
+  const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [allLogs, setAllLogs] = useState<LogEntry[]>([]);
 
-  const dbLogs = sampleLogs;
+
+  const fetchTotalLogs = async (organizationId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const result = await apiService.getLogsCount({ organizationId });
+      setTotalLogs(result.total);
+      setLastUpdated(new Date(result.timestamp).toLocaleString());
+    } catch (error) {
+      console.error("Error fetching total logs : ", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to fetch total logs"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+useEffect(() => {
+  const loadLogs = async () => {
+    try {
+      const result = await apiService.getCurrentUser(); // returns { user: User }
+      const currentUser = result.user;
+      if (!currentUser) return;
+
+      const currentOrgId = currentUser.organizationId;
+      fetchTotalLogs(currentOrgId);
+
+      const interval = setInterval(() => fetchTotalLogs(currentOrgId), 30000);
+      return () => clearInterval(interval);
+    } catch (err) {
+      console.error("Failed to fetch user or logs", err);
+    }
+  };
+
+  loadLogs();
+}, []);
+
+
+  const fetchAllLogs = async (organizationId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const result = await apiService.getAllLogs({ 
+        organizationId,
+        limit: 1000,
+        orderBy: 'timestamp DESC'
+      });
+      setAllLogs(result.logs);
+    } catch (error) {
+      console.error("Error fetching all logs : ", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch all logs(records)"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+useEffect(() => {
+  const loadLogs = async () => {
+    try {
+      const result = await apiService.getCurrentUser(); // returns { user: User }
+      const currentUser = result.user;
+      if (!currentUser) return;
+
+      const currentOrgId = currentUser.organizationId;
+      fetchAllLogs(currentOrgId);
+
+      const interval = setInterval(() => fetchTotalLogs(currentOrgId), 30000);
+      return () => clearInterval(interval);
+    } catch (err) {
+      console.error("Failed to fetch user or logs", err);
+    }
+  };
+
+  loadLogs();
+}, []);
 
   // Transform database logs to match component interface
   const transformLogForModal = (log: LogEntry) => ({
@@ -122,13 +145,13 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
     level: log.level,
     message: log.message,
     app_name: log.app_name,
-    meta: log.meta
+    meta: log.meta,
   });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsRefreshing(false);
   };
 
@@ -137,11 +160,17 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
     console.log("Exporting logs...");
   };
 
-  // Filter logs based on current filters
-  const filteredLogs = (dbLogs || sampleLogs).filter(log => {
-    if (filters.level.length > 0 && !filters.level.includes(log.level)) return false;
-    if (filters.appName.length > 0 && !filters.appName.includes(log.app_name)) return false;
-    if (filters.search && !log.message.toLowerCase().includes(filters.search.toLowerCase())) return false;
+  // // Filter logs based on current filters
+  const filteredLogs = (allLogs || []).filter((log) => {
+    if (filters.level.length > 0 && !filters.level.includes(log.level))
+      return false;
+    if (filters.appName.length > 0 && !filters.appName.includes(log.app_name))
+      return false;
+    if (
+      filters.search &&
+      !log.message.toLowerCase().includes(filters.search.toLowerCase())
+    )
+      return false;
     return true;
   });
 
@@ -157,7 +186,7 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Search className="h-5 w-5 text-primary" />
-              Logs ({filteredLogs.length.toLocaleString()})
+              Logs ({totalLogs})
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button
@@ -166,7 +195,9 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
                 onClick={handleRefresh}
                 disabled={isRefreshing}
               >
-                <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-4 w-4 mr-1 ${isRefreshing ? "animate-spin" : ""}`}
+                />
                 Refresh
               </Button>
               <Button variant="outline" size="sm" onClick={handleExport}>
@@ -198,7 +229,10 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
             </TableHeader>
             <TableBody>
               {paginatedLogs.map((log) => (
-                <TableRow key={log._id} className="border-border hover:bg-muted/50">
+                <TableRow
+                  key={log._id}
+                  className="border-border hover:bg-muted/50"
+                >
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {format(new Date(log.timestamp), "HH:mm:ss.SSS")}
                     <div className="text-xs opacity-60">
@@ -214,22 +248,31 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
                     </Badge>
                   </TableCell>
                   <TableCell className="max-w-md">
-                    <div className="font-mono text-sm truncate" title={log.message}>
+                    <div
+                      className="font-mono text-sm truncate"
+                      title={log.message}
+                    >
                       {log.message}
                     </div>
                     {log.meta && Object.keys(log.meta).length > 0 && (
                       <div className="flex gap-1 mt-1">
-                        {Object.entries(log.meta).slice(0, 2).map(([key, value], index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {key}: {String(value).substring(0, 10)}
-                            {String(value).length > 10 && "..."}
-                          </Badge>
-                        ))}
-                        {Object.keys(log.meta).length > 2 && (
+                        {Object.entries(log.meta)
+                          .slice(0, 2)
+                          .map(([key, value]) => (
+                            <Badge
+                              key={`${log._id}-${key}`}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {key}: {String(value).substring(0, 10)}
+                              {String(value).length > 10 && "..."}
+                            </Badge>
+                          ))}
+                        {/* {Object.keys(log.meta).length > 2 && (
                           <Badge variant="outline" className="text-xs">
                             +{Object.keys(log.meta).length - 2} more
                           </Badge>
-                        )}
+                        )} */}
                       </div>
                     )}
                   </TableCell>
@@ -253,7 +296,8 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-border">
             <div className="text-sm text-muted-foreground">
-              Showing {startIndex + 1} to {Math.min(startIndex + pageSize, filteredLogs.length)} of{" "}
+              Showing {startIndex + 1} to{" "}
+              {Math.min(startIndex + pageSize, filteredLogs.length)} of{" "}
               {filteredLogs.length} logs
             </div>
             <div className="flex items-center gap-2">
@@ -285,7 +329,9 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
                 disabled={currentPage === totalPages}
               >
                 Next
@@ -297,7 +343,7 @@ export const LogsTable = ({ filters }: LogsTableProps) => {
       </Card>
 
       {/* Log Detail Modal */}
-      <LogDetailModal 
+      <LogDetailModal
         log={selectedLog ? transformLogForModal(selectedLog) : null}
         open={isDetailModalOpen}
         onClose={() => {

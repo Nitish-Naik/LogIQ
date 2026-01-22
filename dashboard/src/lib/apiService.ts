@@ -37,16 +37,28 @@ export interface GetLogsParams {
   offset?: number;
 }
 
+// export interface LogEntry {
+//   _id: string;
+//   _creationTime: number;
+//   level: string;
+//   message: string;
+//   timestamp: number;
+//   app_name: string;
+//   metadata: Record<string, unknown>;
+//   userId: string;
+// }
+
 export interface LogEntry {
   _id: string;
-  _creationTime: number;
-  level: string;
-  message: string;
   timestamp: number;
+  level: "error" | "warning" | "info" | "debug";
+  message: string;
   app_name: string;
-  metadata: Record<string, unknown>;
   userId: string;
+  organization: string;
+  meta?: { [key: string]: unknown };
 }
+
 
 export interface GetLogsResponse {
   logs: LogEntry[];
@@ -58,6 +70,7 @@ export interface GetAllLogsParams {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  organizationId?: string;
 }
 
 export interface GetAllLogsResponse {
@@ -71,6 +84,12 @@ export interface LogsCountResponse {
   total: number;
   timestamp: string;
 }
+export interface OrganizationDetailsResponse {
+  name: string;
+  // timestamp: string;
+}
+
+
 
 
 class ApiService {
@@ -134,17 +153,23 @@ class ApiService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${refreshToken}`,
       },
-      body: JSON.stringify({ refreshToken }),
     });
 
-    const result = await this.handleResponse<{ accessToken: string; refreshToken: string }>(response);
+    const result = await this.handleResponse<{ token: string; accessToken: string; refreshToken: string; user: User }>(response);
     
     // Update tokens
-    localStorage.setItem('accessToken', result.accessToken);
-    localStorage.setItem('refreshToken', result.refreshToken);
+    const newAccessToken = result.accessToken || result.token;
+    const newRefreshToken = result.refreshToken || result.token;
     
-    return result;
+    localStorage.setItem('accessToken', newAccessToken);
+    localStorage.setItem('refreshToken', newRefreshToken);
+    
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken
+    };
   }
 
   async getCurrentUser(): Promise<{ user: User }> {
@@ -185,29 +210,31 @@ class ApiService {
     return this.handleResponse<GetLogsResponse>(response);
   }
 
-  async getAllLogs(params?: GetAllLogsParams): Promise<GetAllLogsResponse> {
+async getAllLogs(params?: GetAllLogsParams): Promise<GetAllLogsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.offset) queryParams.append('offset', params.offset.toString());
+  if (params?.orderBy) queryParams.append('orderBy', params.orderBy);
+  if (params?.organizationId) queryParams.append('organizationId', params.organizationId);
+
+  const url = `${API_ENDPOINTS.LOGS.GET_ALL_LOGS}?${queryParams.toString()}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...this.getAuthHeader(),
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return this.handleResponse<GetAllLogsResponse>(response);
+}
+
+
+  async getLogsCount(params?: GetAllLogsParams): Promise<LogsCountResponse> {
     const queryParams = new URLSearchParams();
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.offset) queryParams.append('offset', params.offset.toString());
-    if (params?.orderBy) queryParams.append('orderBy', params.orderBy);
-
-    const url = params 
-      ? `${API_ENDPOINTS.LOGS.GET_ALL_LOGS}?${queryParams.toString()}`
-      : API_ENDPOINTS.LOGS.GET_ALL_LOGS;
-
+    if (params?.organizationId) queryParams.append('organizationId', params.organizationId.toString());
+    const url = `${API_ENDPOINTS.LOGS.GET_LOGS_COUNT}?${queryParams.toString()}`
     const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        ...this.getAuthHeader(),
-        'Content-Type': 'application/json',
-      },
-    });
-
-    return this.handleResponse<GetAllLogsResponse>(response);
-  }
-
-  async getLogsCount(): Promise<LogsCountResponse> {
-    const response = await fetch(API_ENDPOINTS.LOGS.GET_LOGS_COUNT, {
       method: 'GET',
       headers: {
         ...this.getAuthHeader(),
@@ -272,6 +299,18 @@ class ApiService {
     });
 
     return this.handleResponse<{ message: string }>(response);
+  }
+
+  async getOrgDetails(): Promise<OrganizationDetailsResponse> {
+    const response = await fetch(API_ENDPOINTS.ORGANIZATION.GET_DETAILS, {
+      method: 'GET', 
+      headers: {
+        ...this.getAuthHeader(),
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    return this.handleResponse<OrganizationDetailsResponse>(response);
   }
 }
 
