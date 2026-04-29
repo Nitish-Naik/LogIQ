@@ -40,4 +40,12 @@ router.post('/forgot-password', validate(forgotPasswordSchema), authController.f
 router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
 router.post('/verify-reset-token', validate(verifyResetTokenSchema), authController.verifyResetToken);
 
+// API key management
+// Create a new API key (returns the plain key once)
+router.post('/keys', authController.createApiKey);
+// List API keys for current user
+router.get('/keys', authController.listApiKeys);
+// Revoke API key by id
+router.delete('/keys/:id', authController.revokeApiKey);
+
 module.exports = router;

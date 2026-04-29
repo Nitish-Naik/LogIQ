@@ -7,6 +7,7 @@ import { buildQuery, buildAllRowsQuery, buildCountQuery } from './queryBuilder.j
 
 import { WebSocketServer } from 'ws';
 import Redis from 'ioredis';
+import aiRoutes from './ai/aiRoutes.js';
 
 
 dotenv.config();
@@ -21,6 +22,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// AI routes
+app.use('/ai', aiRoutes);
 
 // Middleware to log all incoming requests
 app.use((req, res, next) => {

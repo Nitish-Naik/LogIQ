@@ -1,0 +1,14 @@
+# start infra (Postgres + Redis etc.)
+docker compose up -d
+
+# ensure env (either set PG_URL or DB_* variables). Example:
+export DB_HOST=localhost DB_PORT=5432 DB_NAME=logsdb DB_USER=devlogs DB_PASSWORD=devlogs
+export PG_URL=postgres://devlogs:devlogs@localhost:5432/logsdb
+
+# run SQL migrations
+./db/migrate.sh
+
+# install auth-service deps and run seed
+cd auth-service
+npm install
+npm run seed

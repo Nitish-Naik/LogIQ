@@ -383,3 +383,106 @@ exports.refreshToken = async (req, res) => {
     res.status(500).json({ error: 'Failed to refresh token' });
   }
 };
+
+// Create API key for current user
+exports.createApiKey = async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.userId;
+    const organizationId = decoded.organizationId;
+
+    const { name = 'New API Key', description = null, expiresAt = null } = req.body || {};
+
+    // Generate API key
+    const { apiKey, keyHash, keyPrefix } = generateApiKey();
+
+    // Insert into DB
+    const insert = await pool.query(
+      `INSERT INTO api_keys (user_id, organization_id, key_hash, key_prefix, name, description, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, key_prefix, name, is_active, created_at, expires_at`,
+      [userId, organizationId, keyHash, keyPrefix, name, description, expiresAt]
+    );
+
+    const row = insert.rows[0];
+
+    // Return the plain API key once
+    res.status(201).json({
+      id: row.id,
+      name: row.name,
+      keyPrefix: row.key_prefix,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+      apiKey // plain text shown only once
+    });
+
+  } catch (error) {
+    console.error('Create API key error:', error);
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    res.status(500).json({ error: 'Failed to create API key' });
+  }
+};
+
+// List API keys for current user
+exports.listApiKeys = async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.userId;
+
+    const result = await pool.query(
+      `SELECT id, key_prefix, name, description, is_active, last_used_at, created_at, expires_at
+       FROM api_keys
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    res.json({ keys: result.rows });
+
+  } catch (error) {
+    console.error('List API keys error:', error);
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    res.status(500).json({ error: 'Failed to list API keys' });
+  }
+};
+
+// Revoke (deactivate) an API key
+exports.revokeApiKey = async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.userId;
+    const keyId = req.params.id;
+
+    const result = await pool.query(
+      `UPDATE api_keys SET is_active = FALSE WHERE id = $1 AND user_id = $2 RETURNING id, is_active`,
+      [keyId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'API key not found' });
+    }
+
+    res.json({ id: result.rows[0].id, isActive: result.rows[0].is_active });
+
+  } catch (error) {
+    console.error('Revoke API key error:', error);
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    res.status(500).json({ error: 'Failed to revoke API key' });
+  }
+};

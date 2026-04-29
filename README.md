@@ -1,97 +1,188 @@
-# 📦 Instant Dev Logs – A Distributed Logging System
+# LogIQ
 
-## 📝 Overview
-**Instant Dev Logs** is a self-hosted, distributed logging platform designed to simulate the functionality of tools like Datadog Logs or ElasticSearch. It focuses on building a scalable pipeline to ingest, store, and query application logs.
+LogIQ, also referred to in parts of the repo as Instant Dev Logs, is a local-first distributed logging system built around API-key authenticated ingestion, Redis transport, PostgreSQL storage, and a live dashboard/query layer.
 
----
+The goal of the project is to provide a working end-to-end observability pipeline for learning and demos:
 
-## 🔧 Tech Stack
+- applications send logs to a collector
+- the collector validates the request and writes to Redis/PostgreSQL
+- the query service reads and streams logs for the dashboard
+- the auth service issues API keys and user/session tokens
+- the dashboard provides a UI for browsing logs and managing accounts
 
-| Component         | Tech Used                |
-|------------------|--------------------------|
-| Log Collector     | Node.js / Go             |
-| Message Queue     | Redis Streams / Kafka    |
-| Batch Processor   | Python / Go              |
-| Storage           | PostgreSQL / TimescaleDB / ClickHouse |
-| Query API         | FastAPI / Express        |
-| Dashboard (Optional) | React + WebSocket + Chart.js |
-| Deployment        | Local Docker (no cloud)  |
+## Architecture
 
----
+```text
+Client apps -> Collector -> Redis / PostgreSQL -> Query service -> Dashboard
+                    \
+                     -> Auth service -> API key / auth flows
+```
 
-## 📐 Architecture
+Supporting docs:
 
-![Architecture Diagram](instant_dev_logs_architecture.png)
+- [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
+- [PRODUCTION_GRADE_ARCHITECTURE_DIAGRAM.md](PRODUCTION_GRADE_ARCHITECTURE_DIAGRAM.md)
+- [DISTRIBUTED_ARCHITECTURE_VIEW.md](DISTRIBUTED_ARCHITECTURE_VIEW.md)
+- [QUICK_START_APP1.md](QUICK_START_APP1.md)
 
----
+## Services
 
-## 🔍 Key Features
+| Service | Path | Default port | Purpose |
+|---|---|---:|---|
+| Auth service | `auth-service/` | `3003` | Signup, signin, token verification, password reset, API key-related auth flows |
+| Collector | `collector/` | `4000` | Receives log events and validates API keys |
+| Query service | `query-service/` | `5000` | REST + WebSocket log querying and live streaming |
+| Dashboard | `dashboard/` | `5173` | React UI for viewing logs and account pages |
+| Sample apps | `sample-app-requests/` | varies | Demo senders and integration examples |
 
-- **Log Ingestion**: Collector API accepts structured logs via HTTP.
-- **Streaming**: Redis Streams or Kafka to enable durable, async log transport.
-- **Processing**: Batch processor service with retry + dead-letter queue.
-- **Storage**: Time-series database optimized for timestamped logs.
-- **Querying**: Query API for filtered log retrieval.
-- **Dashboard (Optional)**: Real-time tailing, filtering, and analytics UI.
+## Prerequisites
 
----
+- Node.js 18 or newer
+- npm
+- Docker and Docker Compose
 
-## 🧪 Testing
+## Quick Start
 
-To test locally:
-- Use the included sample web app to generate logs.
-- Monitor log ingestion via the processor and verify DB writes.
-- Query logs via the API and visualize on the dashboard.
+1. Start the infrastructure dependencies:
 
----
+```bash
+docker compose up -d
+```
 
-## 📦 Production Improvements
+This starts PostgreSQL, Redis, Redis Commander, and pgAdmin.
 
-1. **Scalability**: Use Kafka, scale processors, and sharded DB writes.
-2. **Durability**: Add retry, DLQ, replication, WAL.
-3. **Observability**: Expose metrics, Prometheus + Grafana.
-4. **Security**: API keys, mTLS, encryption at rest.
-5. **Developer Experience**: Schema validation, streaming tail logs.
+2. Install dependencies for each service you want to run:
 
----
+```bash
+cd auth-service && npm install
+cd ../collector && npm install
+cd ../query-service && npm install
+cd ../dashboard && npm install
+cd ../sample-app-requests && npm install
+```
 
-## 🧠 Interview Summary Line
+3. Start the backend services in separate terminals:
 
-> "I built a distributed log ingestion pipeline from scratch using queues, batch processing, and time-series storage — a simplified version of how real observability tools like Datadog Logs work."
+```bash
+cd auth-service && npm run dev
+cd collector && npm run dev
+cd query-service && npm run dev
+```
 
----
+4. Start the dashboard:
 
-## 📁 Files
+```bash
+cd dashboard && npm run dev
+```
 
-- `collector/` – Log ingestion API
-- `processor/` – Batch processing logic
-- `db/` – DB schema and queries
-- `sample-app/` – Generates logs for testing
-- `dashboard/` – Optional frontend
+5. Optionally run one of the sample apps to generate logs:
 
+```bash
+cd sample-app-requests && npm run app1
+```
 
+## Environment Variables
 
+Most services load a local `.env` file. The common variables are:
 
+| Variable | Used by | Default / example |
+|---|---|---|
+| `PORT` | auth service, collector, query service | `3003`, `4000`, or `5000` |
+| `DB_HOST` | auth service, collector | `localhost` |
+| `DB_PORT` | auth service, collector | `5432` |
+| `DB_NAME` | auth service, collector | `logsdb` |
+| `DB_USER` | auth service, collector | `devlogs` |
+| `DB_PASSWORD` | auth service, collector | `devlogs` |
+| `JWT_SECRET` | auth service | required for signed tokens in production |
+| `JWT_EXPIRES_IN` | auth service | `24h` |
+| `REDIS_URL` | collector, query service | Redis connection string |
+| `REDIS_STREAM_KEY` | collector | Redis stream key for incoming logs |
+| `PG_URL` | query service | PostgreSQL connection string |
+| `COLLECTOR_URL` | sample apps | usually `http://localhost:4000/logs` |
+| `LOG_API_KEY` | sample apps | API key generated by the auth flow |
+| `LOG_API_KEY2` | sample app 2 | secondary demo key |
 
+## Main Endpoints
 
+### Auth service
 
+Base URL: `http://localhost:3003/api/auth`
 
+- `POST /signup`
+- `POST /signin`
+- `POST /verify`
+- `GET /me`
+- `POST /refresh-token`
+- `POST /forgot-password`
+- `POST /reset-password`
+- `POST /verify-reset-token`
+- `GET /health` at `http://localhost:3003/health`
 
+### Collector
 
+Base URL: `http://localhost:4000`
 
+- `POST /logs` - API-key protected ingestion endpoint
+- `GET /` - simple service health response
 
+### Query service
 
+Base URL: `http://localhost:5000`
 
+- `GET /logs` - filtered log search
+- `GET /logs/all` - paginated log listing
+- `GET /logs/count` - total log count
+- `GET /getOrgDetails` - organization metadata endpoint used by the UI
+- `WS /ws` - live log stream for connected clients
 
+## Sample Apps
 
+The `sample-app-requests/` folder contains demo senders and test harnesses:
 
+- `npm run app1` - e-commerce style demo app
+- `npm run app2` - alternate demo app using a second API key
+- `npm run app3` - additional sample sender
+- `npm run test-api-key` - API key authentication test script
 
+Before running a sample app, create a local `.env` file in that folder with your collector URL and API key.
 
-idl_sk_SkfKyVTRe7ouYwe5HLNg-2Uk0o8Y5Vn8
+## Database and Admin Tools
 
-<!-- 
+The Docker Compose stack provides:
 
-Postgres database interaction command
+- PostgreSQL on `localhost:5432`
+- Redis on `localhost:6379`
+- Redis Commander on `http://localhost:8081`
+- pgAdmin on `http://localhost:8082`
 
-docker exec -it devlogs-postgres psql -U devlogs -d logsdb
- -->
+Default database credentials in the compose file:
+
+- user: `devlogs`
+- password: `devlogs`
+- database: `logsdb`
+
+## Project Layout
+
+- `auth-service/` - user auth, password reset, token issuance
+- `collector/` - API-key protected ingestion service
+- `query-service/` - query API and live log broadcasting
+- `dashboard/` - React frontend
+- `sample-app-requests/` - demo senders and integration examples
+- `db/` - schema files and database helpers
+- `processor/` - stream processor entry point and services
+- `docs/` - additional documentation
+
+## Troubleshooting
+
+- If the auth or collector service cannot connect to PostgreSQL, confirm `docker compose up -d` completed successfully.
+- If log ingestion fails, check `REDIS_URL`, `REDIS_STREAM_KEY`, and the `X-API-Key` header used by the client.
+- If the dashboard cannot load live logs, verify the query service is running and Redis is reachable.
+- If your API key is missing from a sample app, regenerate it from the auth flow and place it in the sample app `.env` file.
+
+## Next Steps
+
+If you want to extend the system, the usual follow-ups are:
+
+1. Add a root-level `.env.example` for all services.
+2. Add unified start scripts so the stack can be launched from one command.
+3. Tighten the query-service and collector documentation around their request/response formats.
