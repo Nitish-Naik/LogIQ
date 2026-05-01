@@ -1,6 +1,155 @@
-# LogIQ
+## LogIQ — Distributed Logging & Data Processing System
 
-LogIQ, also referred to in parts of the repo as Instant Dev Logs, is a local-first distributed logging system built around API-key authenticated ingestion, Redis transport, PostgreSQL storage, and a live dashboard/query layer.
+A hands-on exploration of how production logging pipelines behave under real-world constraints.
+
+LogIQ is a distributed, event-driven logging system designed to understand high-throughput ingestion, asynchronous processing, and failure handling in modern data pipelines.
+
+---
+
+## Why I Built This
+
+Most logging tools abstract away complexity. I wanted to deeply understand:
+
+* How logs flow through a distributed system
+* How to design reliable ingestion pipelines
+* How systems behave under failure and retries
+* How to handle backpressure in async pipelines
+* How to structure data for efficient querying and streaming
+
+This project focuses on **system behavior and tradeoffs**, not just feature implementation.
+
+---
+
+## Architecture Overview
+
+```text
+Producers → Collector → Redis Streams → Processor → PostgreSQL → Query Service → Dashboard
+```
+
+### Flow
+
+1. Applications send logs to the **Collector**
+2. Collector validates API keys and pushes events to **Redis Streams**
+3. **Processor workers** consume streams asynchronously
+4. Logs are persisted in **PostgreSQL**
+5. **Query service** provides REST + WebSocket APIs
+6. Dashboard streams and visualizes logs in real time
+
+---
+
+## Key Design Decisions
+
+### Redis Streams (vs Kafka)
+
+* Simpler setup for a local-first system
+* Built-in support for consumer groups
+* Tradeoff: lower scalability ceiling compared to Kafka
+
+### Asynchronous Workers
+
+* Decouples ingestion from persistence
+* Enables retry logic and failure isolation
+* Improves system resilience under load
+
+### PostgreSQL Storage
+
+* Strong querying capabilities with indexing
+* Reliable and familiar storage model
+* Tradeoff: not optimized for extremely high write throughput
+
+---
+
+## System Behavior
+
+* Supports **concurrent ingestion and async processing**
+* Designed for **horizontal scalability via worker processes**
+* Uses stream buffering to handle **traffic spikes**
+* Real-time log streaming via **WebSockets**
+
+---
+
+## Challenges
+
+* Designing **idempotent processing** to handle retries
+* Preventing **duplicate event writes**
+* Managing **backpressure** in async systems
+* Balancing **real-time streaming vs database consistency**
+
+---
+
+## Key Takeaways
+
+* Distributed systems must be designed for **failure, not just success**
+* Idempotency is essential once retries are introduced
+* Backpressure naturally emerges in async pipelines
+* Decoupling ingestion and processing improves reliability but adds complexity
+
+> This project was built to explore system behavior under load, not just to implement features.
+
+---
+
+## Services
+
+| Service       | Purpose                                   |
+| ------------- | ----------------------------------------- |
+| Auth Service  | API keys, authentication, user management |
+| Collector     | Log ingestion endpoint                    |
+| Processor     | Stream processing + persistence           |
+| Query Service | Query APIs + real-time streaming          |
+| Dashboard     | UI for logs and monitoring                |
+
+---
+
+## Tech Stack
+
+* **Backend:** Node.js, Express
+* **Queue:** Redis Streams
+* **Database:** PostgreSQL
+* **Frontend:** React
+* **Infrastructure:** Docker
+
+---
+
+## Quick Start
+
+```bash
+# Start infrastructure (Postgres + Redis)
+docker compose up -d
+
+# Start services
+cd collector && npm install && npm run dev
+cd processor && npm install && npm run dev
+cd query-service && npm install && npm run dev
+cd dashboard && npm install && npm run dev
+```
+
+---
+
+## What This Project Demonstrates
+
+* Event-driven architecture
+* Distributed system design fundamentals
+* Asynchronous data pipelines
+* Failure handling and retries
+* Real-time data streaming
+* Backend architecture tradeoffs
+
+---
+
+## Future Improvements
+
+* Kafka-based ingestion for higher scalability
+* Stream partitioning and load balancing
+* Advanced indexing strategies
+* Rate limiting and ingestion throttling
+* Metrics + observability (Prometheus/Grafana)
+
+---
+
+## Repository
+
+GitHub: https://github.com/Nitish-Naik
+
 
 The goal of the project is to provide a working end-to-end observability pipeline for learning and demos:
 
@@ -23,7 +172,7 @@ Supporting docs:
 - [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
 - [PRODUCTION_GRADE_ARCHITECTURE_DIAGRAM.md](PRODUCTION_GRADE_ARCHITECTURE_DIAGRAM.md)
 - [DISTRIBUTED_ARCHITECTURE_VIEW.md](DISTRIBUTED_ARCHITECTURE_VIEW.md)
-- [QUICK_START_APP1.md](QUICK_START_APP1.md)
+- [QUICK_START_APP.md](QUICK_START_APP1.md)
 
 ## Services
 
