@@ -186,3 +186,133 @@ If you want to extend the system, the usual follow-ups are:
 1. Add a root-level `.env.example` for all services.
 2. Add unified start scripts so the stack can be launched from one command.
 3. Tighten the query-service and collector documentation around their request/response formats.
+# LogIQ — Distributed Local Logging Platform
+
+LogIQ (Instant Dev Logs) is a self-hosted, modular observability stack designed for learning, demos, and local development. It demonstrates an end-to-end logging pipeline with secure ingestion, streaming, durable persistence, querying, and a UI.
+
+This README is a high-level guide. For implementation details, see the service folders.
+
+## Key goals
+
+- Provide a simple, extensible logging pipeline for experimenting with ingestion, streaming, and querying.
+- Offer clear integration points for AI features (summaries, semantic search) while protecting privacy.
+- Demonstrate production-minded patterns: API keys, consumer-groups, DLQ, and migrations.
+
+## Architecture overview
+
+Client apps → Collector (HTTP) → Redis stream → Processor → PostgreSQL → Query service → Dashboard
+
+Auth service manages users and API keys used by clients to authenticate ingestion requests.
+
+Key repository documents:
+
+- [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
+- [PRODUCTION_GRADE_ARCHITECTURE_DIAGRAM.md](PRODUCTION_GRADE_ARCHITECTURE_DIAGRAM.md)
+- [DISTRIBUTED_ARCHITECTURE_VIEW.md](DISTRIBUTED_ARCHITECTURE_VIEW.md)
+
+## Services
+
+| Service | Path | Default port | Purpose |
+|---|---|---:|---|
+| Auth service | [auth-service](auth-service) | 3003 | User/account management and API-key lifecycle |
+| Collector | [collector](collector) | 4000 | Accepts logs (API-key protected) and writes to Redis streams |
+| Processor | [processor](processor) | n/a | Consumes Redis streams, persists logs to Postgres, publishes live events |
+| Query service | [query-service](query-service) | 5000 | Query API, WebSocket live stream, AI endpoints |
+| Dashboard | [dashboard](dashboard) | 5173 | React-based UI for browsing logs and management |
+| Sample apps | [sample-app-requests](sample-app-requests) | n/a | Example apps and test scripts |
+
+## Quickstart (local)
+
+1. Start infrastructure:
+
+```bash
+docker compose up -d
+```
+
+2. Apply DB migrations (creates tables and extensions):
+
+```bash
+# ensure PG_URL or DB_* env vars are set (see .env.example)
+./db/migrate.sh
+```
+
+3. (Optional) Seed a demo admin account and API key:
+
+```bash
+cd auth-service
+npm install
+npm run seed
+```
+
+4. Launch services (convenience script):
+
+```bash
+chmod +x start-all.sh
+./start-all.sh
+```
+
+Or run services individually and in foreground for development:
+
+```bash
+cd collector && npm install && npm run dev
+cd auth-service && npm install && npm run dev
+cd query-service && npm install && npm run dev
+cd dashboard && npm install && npm run dev
+```
+
+## Environment variables
+
+Templates are provided per service. See:
+
+- [/.env.example](.env.example)
+- [/auth-service/.env.example](auth-service/.env.example)
+- [/collector/.env.example](collector/.env.example)
+- [/query-service/.env.example](query-service/.env.example)
+
+Important variables
+
+- `DB_*` / `PG_URL` — Postgres connection
+- `REDIS_URL` — Redis connection string
+- `REDIS_STREAM_KEY` — Redis stream key used for logs
+- `JWT_SECRET` — auth service JWT signing secret
+- `OPENAI_API_KEY` — only required for AI features (summaries/embeddings)
+
+## Notable endpoints
+
+- Collector: `POST /logs` (requires `X-API-Key` or `Authorization: Bearer <apiKey>`)
+- Auth: `POST /api/auth/signup`, `POST /api/auth/signin`, `POST /api/auth/keys`, `GET /api/auth/keys`, `DELETE /api/auth/keys/:id`
+- Query: `GET /logs`, `GET /logs/all`, `GET /logs/count`, `WS /ws`
+- AI (Query service): `POST /ai/summarize`, `POST /ai/semantic-search`
+
+## AI features and privacy
+
+The repository includes experimental AI features in `query-service/ai`:
+
+- Log summarization (`/ai/summarize`) — redacts common PII patterns before sending text to an external provider.
+- Semantic search (`/ai/semantic-search`) — uses embeddings and `pgvector` to rank similar logs.
+
+PII protection is implemented as a best-effort regex-based redaction. For production, review and harden redaction rules and add an opt-in policy for external model usage.
+
+## Operational notes
+
+- The processor uses Redis consumer groups and a DLQ pattern for reliable ingestion; inspect `processor/services/streamProcessor.js`.
+- Rate limiting is enforced in the collector middleware (token-bucket style backed by Redis).
+- Migrations live under `db/` and a simple runner `db/migrate.sh` is provided.
+
+## Troubleshooting
+
+- If `db/migrate.sh` fails creating the `vector` extension, use a Postgres image with `pgvector` installed or install the extension in your DB.
+- If logs are not landing in Postgres, confirm the processor is running and Redis is reachable.
+
+## Contributing
+
+Contributions are welcome. For changes:
+
+1. Fork the repository, create a feature branch.
+2. Add tests for non-trivial logic.
+3. Open a PR describing the change, rationale, and testing steps.
+
+## License
+
+This repository is provided for educational and demo purposes. Add or check a license file if you intend to publish or distribute.
+
