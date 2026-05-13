@@ -8,6 +8,7 @@ const GROUP = process.env.REDIS_CONSUMER_GROUP || 'log_consumers';
 const CONSUMER = `${require('os').hostname()}:${process.pid}`;
 const DLQ_STREAM = `${STREAM_KEY}-dlq`;
 const MAX_DELIVERIES = parseInt(process.env.MAX_DELIVERIES || '5', 10);
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '100', 10);
 
 // Track failed delivery attempts in Redis with a small key per message id
 function failureKey(id) {
@@ -85,6 +86,39 @@ async function processEntry(id, entries) {
   }
 }
 
+async function processBatch(messages) {
+  // messages: Array of [id, entries]
+  const ids = messages.map(m => m[0]);
+  const objs = messages.map(([id, entries]) => {
+    const obj = {};
+    for (let i = 0; i < entries.length; i += 2) {
+      const key = entries[i];
+      let value = entries[i + 1];
+      try { value = JSON.parse(value); } catch (_) {}
+      obj[key] = value;
+    }
+    return obj;
+  });
+
+  try {
+    await insertLogs(objs);
+
+    // Publish and acknowledge all
+    await Promise.all(objs.map(o => pub.publish('logs-live', JSON.stringify(o))));
+    await redis.xack(STREAM_KEY, GROUP, ...ids);
+    await Promise.all(ids.map(id => redis.del(failureKey(id))));
+
+    return true;
+  } catch (err) {
+    console.error('❌ Batch processing failed, falling back to individual processing:', err.message || err);
+    // Fallback: process individually so DLQ and retries still work
+    for (const [id, entries] of messages) {
+      try { await processEntry(id, entries); } catch (_) {}
+    }
+    return false;
+  }
+}
+
 async function startStreamProcessor() {
   console.log('🔁 Starting stream processor (consumer group)...');
 
@@ -132,9 +166,16 @@ async function startStreamProcessor() {
 
       const [_, messages] = resp[0];
 
+      // Chunk messages into batches for bulk DB insertion
+      let batch = [];
       for (const [id, entries] of messages) {
-        await processEntry(id, entries);
+        batch.push([id, entries]);
+        if (batch.length >= BATCH_SIZE) {
+          await processBatch(batch);
+          batch = [];
+        }
       }
+      if (batch.length) await processBatch(batch);
 
     } catch (err) {
       console.error('❌ Error in stream processor main loop:', err);

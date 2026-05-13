@@ -1,28 +1,45 @@
 const pool = require('../config/db');
 
 async function insertLogs(logs) {
-    const query = `
-        INSERT INTO LOGS (timestamp, level, message, app_name, meta, user_id, organization_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `;
+    if (!Array.isArray(logs) || logs.length === 0) return;
 
     const client = await pool.connect();
 
     try {
-        for( const log of logs ) {
-            await client.query(query, [
+        // Build a single multi-row INSERT to reduce round trips
+        const cols = ['timestamp', 'level', 'message', 'app_name', 'meta', 'user_id', 'organization_id'];
+        const valuePlaceholders = [];
+        const values = [];
+        let idx = 1;
+
+        for (const log of logs) {
+            const placeholders = [];
+            // Order must match cols
+            const rowValues = [
                 log.timestamp,
                 log.level,
                 log.message,
-                log.appName, // Map appName from collector to app_name in DB
+                log.appName,
                 log.meta,
                 log.userId || null,
                 log.organizationId || null
-            ]);
+            ];
+
+            for (let i = 0; i < rowValues.length; i++) {
+                placeholders.push(`$${idx++}`);
+            }
+
+            valuePlaceholders.push(`(${placeholders.join(',')})`);
+            values.push(...rowValues);
         }
-        console.log('✅ Batch inserted into DB')
+
+        const query = `INSERT INTO logs (${cols.join(',')}) VALUES ${valuePlaceholders.join(',')}`;
+
+        await client.query(query, values);
+        console.log(`✅ Bulk inserted ${logs.length} logs`);
     } catch (err) {
         console.error('❌ Failed to insert logs:', err);
+        throw err;
     } finally {
         client.release();
     }
@@ -30,7 +47,7 @@ async function insertLogs(logs) {
 
 async function queryLogs({ userId, organizationId, level, appName, search, limit = 100, offset = 0 }) {
     const client = await pool.connect();
-    
+
     try {
         let conditions = [];
         let params = [];
@@ -61,7 +78,7 @@ async function queryLogs({ userId, organizationId, level, appName, search, limit
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-        
+
         // Get total count
         const countQuery = `SELECT COUNT(*) as total FROM logs ${whereClause}`;
         const countResult = await client.query(countQuery, params);
