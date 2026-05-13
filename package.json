@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "test": "echo \"No tests\""
+    "test": "echo \"No tests\"",
+    "build": "echo \"No root build configured. Run 'npm --prefix dashboard install && npm --prefix dashboard run build' to build the dashboard.\""
   },
   "dependencies": {
     "axios": "^1.11.0",
